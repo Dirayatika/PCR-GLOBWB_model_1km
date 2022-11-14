@@ -212,6 +212,14 @@ class Meteo(object):
         self.temperature_set_per_year    = iniItems.meteoOptions['temperature_set_per_year'] == "True"
         self.refETPotFileNC_set_per_year = iniItems.meteoOptions['refETPotFileNC_set_per_year'] == "True" 
         
+        
+        # option for downscaling meteo using daily climatological factor
+        self.using_daily_factor_for_downscaling = False
+        if "using_daily_factor_for_downscaling" and iniItems.meteoOptions['using_daily_factor_for_downscaling'] == True:
+            self.using_daily_factor_for_downscaling = True
+            self.precip_downscaling_factor_file = iniItems.meteoOptions['precipitation_set_per_year']
+            # TODO: expand this for T and ET0
+        
         # make the iniItems available for the other modules:
         self.iniItems = iniItems
         
@@ -433,7 +441,7 @@ class Meteo(object):
 
         # Downscaling precipitation
         self.precipitation_before_downscaling = pcr.ifthen(self.landmask, self.precipitation)
-        if self.downscalePrecipitationOption: self.downscalePrecipitation(currTimeStep)
+        if self.downscalePrecipitationOption: self.downscalePrecipitation(currTimeStep, read_factor_from_file = self.using_daily_factor_for_downscaling)
 
         # downscaling temperature average       
         self.temperature_before_downscaling = pcr.ifthen(self.landmask, self.temperature)
@@ -860,44 +868,55 @@ class Meteo(object):
                                          timeStamp,currTimeStep.annuaIdx-1)
 
 
-    def downscalePrecipitation(self, currTimeStep, useFactor = True, minCorrelationCriteria = 0.85, drizzle_limit = 0.001, considerCellArea = True):
+    def downscalePrecipitation(self, currTimeStep, read_factor_from_file = False, useFactor = True, minCorrelationCriteria = 0.85, drizzle_limit = 0.001, considerCellArea = True):
         
         # TODO: add CorrelationCriteria in the config file
         
-        preSlope = 0.001 * vos.netcdf2PCRobjClone(\
-                           self.precipLapseRateNC, 'precipitation',\
-                           currTimeStep.month, useDoy = "Yes",\
-                           cloneMapFileName=self.cloneMap,\
-                           LatitudeLongitude = True)
-        preSlope = pcr.cover(preSlope, 0.0)
-        preSlope = pcr.max(0.,preSlope)
+        if read_factor_from_file == True:
         
-        preCriteria = vos.netcdf2PCRobjClone(\
-                     self.precipitCorrelNC, 'precipitation',\
-                     currTimeStep.month, useDoy = "Yes",\
-                     cloneMapFileName=self.cloneMap,\
-                     LatitudeLongitude = True)
-        preSlope = pcr.ifthenelse(preCriteria > minCorrelationCriteria,\
-                   preSlope, 0.0)             
-        preSlope = pcr.cover(preSlope, 0.0)
+            preSlope = 0.001 * vos.netcdf2PCRobjClone(\
+                               self.precipLapseRateNC, 'precipitation',\
+                               currTimeStep.month, useDoy = "Yes",\
+                               cloneMapFileName=self.cloneMap,\
+                               LatitudeLongitude = True)
+            preSlope = pcr.cover(preSlope, 0.0)
+            preSlope = pcr.max(0.,preSlope)
+            
+            preCriteria = vos.netcdf2PCRobjClone(\
+                         self.precipitCorrelNC, 'precipitation',\
+                         currTimeStep.month, useDoy = "Yes",\
+                         cloneMapFileName=self.cloneMap,\
+                         LatitudeLongitude = True)
+            preSlope = pcr.ifthenelse(preCriteria > minCorrelationCriteria,\
+                       preSlope, 0.0)             
+            preSlope = pcr.cover(preSlope, 0.0)
     
         if useFactor == True:
-            factor = pcr.max(0., self.precipitation + preSlope * self.anomalyDEM)
-
-            # ~ # avoid too high factor
-            # ~ factor    = pcr.min(self.precipitation * 3.0, factor)
-
-            # avoid zero factor
-            min_limit = drizzle_limit
-            factor    = pcr.max(min_limit, factor)
-
-            if considerCellArea: factor = factor * self.cellArea
-
-            factor = factor / pcr.areaaverage(factor, self.meteoDownscaleIds)
-
-            # - do not downscale drizzle
-            #~ factor = pcr.ifthenelse(pcr.areaaverage(self.precipitation, self.meteoDownscaleIds) > drizzle_limit, factor, 1.00) 
-            factor = pcr.ifthenelse(self.precipitation > drizzle_limit, factor, 1.00) 
+            
+            if read_factor_from_file == True:
+            
+                factor = vos.netcdf2PCRobjClone(self.precip_downscaling_factor_file, 'automatic', \
+                                                currTimeStep.fulldate, useDoy = 'daily_seasonal',\
+                                                cloneMapFileName = self.cloneMap)
+            
+            else:
+            
+                factor = pcr.max(0., self.precipitation + preSlope * self.anomalyDEM)
+			    
+                # ~ # avoid too high factor
+                # ~ factor    = pcr.min(self.precipitation * 3.0, factor)
+			    
+                # avoid zero factor
+                min_limit = drizzle_limit
+                factor    = pcr.max(min_limit, factor)
+			    
+                if considerCellArea: factor = factor * self.cellArea
+			    
+                factor = factor / pcr.areaaverage(factor, self.meteoDownscaleIds)
+			    
+                # - do not downscale drizzle
+                #~ factor = pcr.ifthenelse(pcr.areaaverage(self.precipitation, self.meteoDownscaleIds) > drizzle_limit, factor, 1.00) 
+                factor = pcr.ifthenelse(self.precipitation > drizzle_limit, factor, 1.00) 
             
             factor = pcr.cover(factor, 1.0)
             
