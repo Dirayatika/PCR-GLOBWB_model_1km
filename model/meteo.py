@@ -915,9 +915,9 @@ class Meteo(object):
 			    
                 factor = factor / pcr.areaaverage(factor, self.meteoDownscaleIds)
 			    
-                # - do not downscale drizzle
-                #~ factor = pcr.ifthenelse(pcr.areaaverage(self.precipitation, self.meteoDownscaleIds) > drizzle_limit, factor, 1.00) 
-                factor = pcr.ifthenelse(self.precipitation > drizzle_limit, factor, 1.00) 
+            # - do not downscale drizzle
+            #~ factor = pcr.ifthenelse(pcr.areaaverage(self.precipitation, self.meteoDownscaleIds) > drizzle_limit, factor, 1.00) 
+            factor = pcr.ifthenelse(self.precipitation > drizzle_limit, factor, 1.00) 
             
             factor = pcr.cover(factor, 1.0)
             
