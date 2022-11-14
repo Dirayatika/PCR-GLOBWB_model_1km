@@ -215,7 +215,7 @@ class Meteo(object):
         
         # option for downscaling meteo using daily climatological factor
         self.using_daily_factor_for_downscaling = False
-        if "using_daily_factor_for_downscaling" and iniItems.meteoOptions['using_daily_factor_for_downscaling'] == True:
+        if "using_daily_factor_for_downscaling" in iniItems.meteoOptions.keys() and iniItems.meteoOptions['using_daily_factor_for_downscaling'] == True:
             self.using_daily_factor_for_downscaling = True
             self.precip_downscaling_factor_file = iniItems.meteoOptions['precipitation_set_per_year']
             # TODO: expand this for T and ET0
