@@ -873,24 +873,25 @@ class Meteo(object):
         
         # TODO: add CorrelationCriteria in the config file
         
-        if read_factor_from_file == True:
+        # if read_factor_from_file == True:
+        #TODO  add dry days cutoff
         
-            preSlope = 0.001 * vos.netcdf2PCRobjClone(\
-                               self.precipLapseRateNC, 'precipitation',\
-                               currTimeStep.month, useDoy = "Yes",\
-                               cloneMapFileName=self.cloneMap,\
-                               LatitudeLongitude = True)
-            preSlope = pcr.cover(preSlope, 0.0)
-            preSlope = pcr.max(0.,preSlope)
-            
-            preCriteria = vos.netcdf2PCRobjClone(\
-                         self.precipitCorrelNC, 'precipitation',\
-                         currTimeStep.month, useDoy = "Yes",\
-                         cloneMapFileName=self.cloneMap,\
-                         LatitudeLongitude = True)
-            preSlope = pcr.ifthenelse(preCriteria > minCorrelationCriteria,\
-                       preSlope, 0.0)             
-            preSlope = pcr.cover(preSlope, 0.0)
+        preSlope = 0.001 * vos.netcdf2PCRobjClone(\
+                            self.precipLapseRateNC, 'precipitation',\
+                            currTimeStep.month, useDoy = "Yes",\
+                            cloneMapFileName=self.cloneMap,\
+                            LatitudeLongitude = True)
+        preSlope = pcr.cover(preSlope, 0.0)
+        preSlope = pcr.max(0.,preSlope)
+        
+        preCriteria = vos.netcdf2PCRobjClone(\
+                        self.precipitCorrelNC, 'precipitation',\
+                        currTimeStep.month, useDoy = "Yes",\
+                        cloneMapFileName=self.cloneMap,\
+                        LatitudeLongitude = True)
+        preSlope = pcr.ifthenelse(preCriteria > minCorrelationCriteria,\
+                    preSlope, 0.0)             
+        preSlope = pcr.cover(preSlope, 0.0)
     
         if useFactor == True:
             
