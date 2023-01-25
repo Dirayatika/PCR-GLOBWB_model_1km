@@ -35,6 +35,10 @@ import netCDF4 as nc
 import numpy as np
 import pcraster as pcr
 import virtualOS as vos
+import xarray as xr
+import zarr
+# from currTimeStep import ModelTime
+import pandas as pd
 
 # TODO: defined the dictionary (e.g. filecache = dict()) to avoid open and closing files
 
@@ -49,6 +53,15 @@ class PCR2netCDF():
         # latitudes and longitudes
         self.latitudes  = np.unique(pcr.pcr2numpy(pcr.ycoordinate(cloneMap), vos.MV))[::-1]
         self.longitudes = np.unique(pcr.pcr2numpy(pcr.xcoordinate(cloneMap), vos.MV))
+
+        #Select file format for output files
+        self.formatOutputFile = iniItems.reportingOptions['fileFormat']
+
+        # time step info 
+        sd, ed = pd.Timestamp(iniItems.globalOptions['startTime']), pd.Timestamp(iniItems.globalOptions['endTime'])
+        numberOfTimeSteps = int(((ed - sd) / np.timedelta64(1, 'D')) +1)
+        startTime = nc.date2num(pd.Timestamp(sd), 'days since 1901-01-01', 'standard')
+        self.times = np.arange(startTime, startTime + numberOfTimeSteps)
         
         # Let users decide what their preference regarding latitude order. 
         self.netcdf_y_orientation_follow_cf_convention = False
@@ -68,8 +81,6 @@ class PCR2netCDF():
             self.format = str(iniItems.reportingOptions['formatNetCDF'])
         if "zlib" in list(iniItems.reportingOptions.keys()):
             if iniItems.reportingOptions['zlib'] == "True": self.zlib = True
-        
-
         # if given in the ini file, use the netcdf as given in the section 'specific_attributes_for_netcdf_output_files'
         if 'specific_attributes_for_netcdf_output_files' in iniItems.allSections:
             for key in list(iniItems.specific_attributes_for_netcdf_output_files.keys()):
@@ -84,7 +95,7 @@ class PCR2netCDF():
                 if self.attributeDictionary[key] == "Default" and\
                   (key == "date_created" or key == "date_issued"):
                     self.attributeDictionary[key] = datetime.datetime.today().isoformat(' ')
- 
+
                     
     def set_general_netcdf_attributes(self,iniItems,specificAttributeDictionary=None):
 
@@ -100,53 +111,71 @@ class PCR2netCDF():
                 self.attributeDictionary[ncAttributeKey]= ncAttribute
 
     def createNetCDF(self, ncFileName, varName, varUnits, longName = None, standardName= None):
+        s = time.time()
+        if self.formatOutputFile == 'ZARR':
+            ds = xr.Dataset(data_vars=dict(varName=(["latitude", "longitude", "time"], 
+                                            zarr.empty(shape=(len(self.latitudes), len(self.longitudes), len(self.times)), chunks=(-1, -1, -1), dtype='f4'))
+                                                ), 
+                            coords=dict(latitude=(["latitude"], self.latitudes), 
+                                        longitude=(["longitude"], self.longitudes), 
+                                        time=(["time"], self.times, {'standard_name': 'time',
+                                                                            'long_name': 'Days since 1901-01-01',
+                                                                            'units': 'days since 1901-01-01',
+                                                                            'calendar' : 'standard'})
+                                            )
+                                )
 
-        rootgrp = nc.Dataset(ncFileName,'w',format= self.format)
+            ds.to_zarr(ncFileName, mode = 'w', safe_chunks =False, compute=False)
 
-        #-create dimensions - time is unlimited, others are fixed
-        rootgrp.createDimension('time',None)
-        rootgrp.createDimension('lat',len(self.latitudes))
-        rootgrp.createDimension('lon',len(self.longitudes))
+        if self.formatOutputFile == 'NETCDF':
+            rootgrp = nc.Dataset(ncFileName,'w',format= self.format)
 
-        date_time = rootgrp.createVariable('time','f4',('time',))
-        date_time.standard_name = 'time'
-        date_time.long_name = 'Days since 1901-01-01'
+            #-create dimensions - time is unlimited, others are fixed
+            rootgrp.createDimension('time',None)
+            rootgrp.createDimension('lat',len(self.latitudes))
+            rootgrp.createDimension('lon',len(self.longitudes))
 
-        #~ date_time.units = 'Days since 1901-01-01' 
-        # - fixing for ulysses
-        date_time.units    = 'days since 1901-01-01'
+            date_time = rootgrp.createVariable('time','f4',('time',))
+            date_time.standard_name = 'time'
+            date_time.long_name = 'Days since 1901-01-01'
 
-        date_time.calendar = 'standard'
+            #~ date_time.units = 'Days since 1901-01-01' 
+            # - fixing for ulysses
+            date_time.units    = 'days since 1901-01-01'
 
-        lat= rootgrp.createVariable('lat','f4',('lat',))
-        lat.long_name = 'latitude'
-        lat.units = 'degrees_north'
-        lat.standard_name = 'latitude'
+            date_time.calendar = 'standard'
 
-        lon= rootgrp.createVariable('lon','f4',('lon',))
-        lon.standard_name = 'longitude'
-        lon.long_name = 'longitude'
-        lon.units = 'degrees_east'
+            lat= rootgrp.createVariable('lat','f4',('lat',))
+            lat.long_name = 'latitude'
+            lat.units = 'degrees_north'
+            lat.standard_name = 'latitude'
 
-        lat[:]= self.latitudes
-        lon[:]= self.longitudes
+            lon= rootgrp.createVariable('lon','f4',('lon',))
+            lon.standard_name = 'longitude'
+            lon.long_name = 'longitude'
+            lon.units = 'degrees_east'
 
-        shortVarName = varName
-        longVarName  = varName
-        standardVarName = varName
-        if longName != None: longVarName = longName
-        if standardName != None: standardVarName = standardName
+            lat[:]= self.latitudes
+            lon[:]= self.longitudes
 
-        var = rootgrp.createVariable(shortVarName,'f4',('time','lat','lon',) ,fill_value=vos.MV,zlib=self.zlib)
-        var.standard_name = standardVarName
-        var.long_name = longVarName
-        var.units = varUnits
+            shortVarName = varName
+            longVarName  = varName
+            standardVarName = varName
+            if longName != None: longVarName = longName
+            if standardName != None: standardVarName = standardName
 
-        attributeDictionary = self.attributeDictionary
-        for k, v in list(attributeDictionary.items()): setattr(rootgrp,k,v)
+            var = rootgrp.createVariable(shortVarName,'f4',('time','lat','lon',) ,fill_value=vos.MV,zlib=self.zlib)
+            var.standard_name = standardVarName
+            var.long_name = longVarName
+            var.units = varUnits
 
-        rootgrp.sync()
-        rootgrp.close()
+            attributeDictionary = self.attributeDictionary
+            for k, v in list(attributeDictionary.items()): setattr(rootgrp,k,v)
+
+            rootgrp.sync()
+            rootgrp.close()
+        print(time.time() - s)
+
 
     def changeAtrribute(self, ncFileName, attributeDictionary):
 
@@ -174,20 +203,38 @@ class PCR2netCDF():
         rootgrp.close()
 
     def data2NetCDF(self, ncFileName, shortVarName, varField, timeStamp, posCnt = None):
+        s = time.time()
+        if self.formatOutputFile == 'ZARR':
+            pass
+        #     date_time = xr.open_zarr(ncFileName, decode_cf = False)
 
-        rootgrp = nc.Dataset(ncFileName,'a')
+        #     if posCnt == None: posCnt = date_time['time'].values
+        #     date_time = nc.date2num(timeStamp, date_time['time'].attrs['units'], date_time['time'].attrs['calendar'])
+        #     timeNum = list(posCnt).index(date_time)
 
-        date_time = rootgrp.variables['time']
-        if posCnt == None: posCnt = len(date_time)
-        date_time[posCnt] = nc.date2num(timeStamp,date_time.units,date_time.calendar)
+        #     varField = xr.DataArray(np.expand_dims(varField, axis=2), dims=['latitude', 'longitude', 'time'], 
+        #                 coords=dict(
+        #                     latitude=(['latitude'], self.latitudes),
+        #                         longitude=(['longitude'], self.longitudes),
+        #                         time= (['time'], [date_time]))).to_dataset(name=shortVarName).chunk(2,2,1)
+        #     varField = varField.drop_vars(['latitude', 'longitude'])
+        #     varField.to_zarr(ncFileName, region={"time": slice(timeNum, timeNum + 1)})
+        # if self.formatOutputFile == 'NETCDF':
+        #     rootgrp = nc.Dataset(ncFileName,'a')
 
-        # flip variable if necessary (to follow cf_convention)
-        if self.netcdf_y_orientation_follow_cf_convention: varField = np.flipud(varField)
-        
-        rootgrp.variables[shortVarName][posCnt,:,:] = varField
+        #     date_time = rootgrp.variables['time']
+        #     if posCnt == None: posCnt = len(date_time)
+        #     date_time[posCnt] = nc.date2num(timeStamp,date_time.units,date_time.calendar)
 
-        rootgrp.sync()
-        rootgrp.close()
+        #     # flip variable if necessary (to follow cf_convention)
+        #     if self.netcdf_y_orientation_follow_cf_convention: varField = np.flipud(varField)
+            
+        #     rootgrp.variables[shortVarName][posCnt,:,:] = varField
+
+        #     rootgrp.sync()
+        #     rootgrp.close()
+        print(time.time() -s)
+
 
     def dataList2NetCDF(self, ncFileName, shortVarNameList, varFieldList, timeStamp, posCnt = None):
 
