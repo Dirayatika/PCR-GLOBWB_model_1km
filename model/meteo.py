@@ -39,6 +39,7 @@ import evaporation.hamonETPFunctions as hamon_et0
 import evaporation.ref_pot_et_penman_monteith as penman_monteith
 import evaporation.shortwave_radiation as sw_rad
 import pyinterp
+import pyinterp.fill
 import pyinterp.backends.xarray
 
 
@@ -893,6 +894,8 @@ class Meteo(object):
             #TODO use this one too?
 
             self.precipitation = self.precipitation * factor
+            self.precipitation = pcr.max(0.0, self.precipitation)
+
 
         else:
             preSlope = 0.001 * vos.netcdf2PCRobjClone(\
@@ -1012,7 +1015,7 @@ class Meteo(object):
             factor = vos.readDownscalingZarr(self.evap_downscaling_factor_file, 'automatic', \
                                             currTimeStep.doy, useDoy = "Yes",\
                                             cloneMapFileName = self.cloneMap)
-            self.referencePotET = self.referencePotET #* factor
+            self.referencePotET = self.referencePotET * factor
 
         else:
             if usingHamon:
@@ -1041,7 +1044,6 @@ class Meteo(object):
             factor = pcr.cover(factor, 1.0)
             
             self.referencePotET = pcr.max(0.0, factor * self.referencePotET)
-        
 
     def read_forcings(self, currTimeStep):
 
@@ -1144,8 +1146,6 @@ class Meteo(object):
                                         LatitudeLongitude = True)
 
         else:
-            print('no')
-
             self.temperature = vos.netcdf2PCRobjClone(\
                                         netcdf_file_name, "automatic",\
                                         str(currTimeStep.fulldate), 
@@ -1191,21 +1191,21 @@ class Meteo(object):
                                           # ~ cloneMapFileName = self.cloneMap,\
                                           # ~ LatitudeLongitude = True)
 
-        if self.using_daily_factor_for_downscaling == True:
-            self.referencePotET = vos.readDownscalingMeteo(\
-                                        netcdf_file_name, "automatic",\
-                                        str(currTimeStep.fulldate), 
-                                        useDoy = method_for_time_index,
-                                        cloneMapFileName = self.cloneMap,\
-                                        LatitudeLongitude = True)
-        
-        else:
-            self.referencePotET = vos.netcdf2PCRobjClone(\
-                                          netcdf_file_name, "automatic",\
-                                          str(currTimeStep.fulldate), 
-                                          useDoy = method_for_time_index,
-                                          cloneMapFileName = self.cloneMap,\
-                                          LatitudeLongitude = True)
+            if self.using_daily_factor_for_downscaling == True:
+                self.referencePotET = vos.readDownscalingMeteo(\
+                                            netcdf_file_name, "automatic",\
+                                            str(currTimeStep.fulldate), 
+                                            useDoy = method_for_time_index,
+                                            cloneMapFileName = self.cloneMap,\
+                                            LatitudeLongitude = True)
+            
+            else:
+                self.referencePotET = vos.netcdf2PCRobjClone(\
+                                            netcdf_file_name, "automatic",\
+                                            str(currTimeStep.fulldate), 
+                                            useDoy = method_for_time_index,
+                                            cloneMapFileName = self.cloneMap,\
+                                            LatitudeLongitude = True)
 
             #-----------------------------------------------------------------------
             # NOTE: RvB 13/07/2016 added to automatically update reference potential evapotranspiration

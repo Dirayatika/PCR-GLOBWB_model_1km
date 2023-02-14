@@ -50,8 +50,8 @@ import logging
 from six.moves import range
 
 import xarray as xr
-import zarr
 import pyinterp
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -89,16 +89,14 @@ def readDownscalingZarr(ncFile,\
     # Get netCDF file and variable name:
     
     #~ print ncFile
-    
     if varName != "automatic": logger.debug('reading variable: '+str(varName)+' from the file: '+str(ncFile))
     
-    if ncFile in list(filecache.keys()):
-        f = filecache[ncFile]
-        #~ print "Cached: ", ncFile
-    else:
+    # if ncFile in list(filecache.keys()):
+    #     f = filecache[ncFile]
+    #     #~ print "Cached: ", ncFile
+    # else:
         # f = nc.Dataset(ncFile)
-        f = xr.open_zarr(ncFile, decode_times=False)
-        print(f)
+    f = xr.open_zarr(ncFile, decode_cf=False, decode_times=False, decode_coords=False, mask_and_scale=False)
 
         # filecache[ncFile] = f
         #~ print "New: ", ncFile
@@ -190,7 +188,7 @@ def readDownscalingZarr(ncFile,\
         if useDoy == "Yes": 
             logger.debug('Finding the date based on the given climatology doy index (1 to 366, or index 0 to 365)')
             idx = int(dateInput) - 1
-            f = f[f'{varName}'].isel(time=idx)
+            f = f[f'{varName}'].isel(time=idx-1)
     #     elif useDoy == "month":  # PS: WE NEED THIS ONE FOR NETCDF FILES that contain only 12 monthly values (e.g. cropCoefficientWaterNC).
     #         logger.debug('Finding the date based on the given climatology month index (1 to 12, or index 0 to 11)')
     #         # make sure that date is in the correct format
@@ -424,7 +422,6 @@ def readDownscalingMeteo(ncFile,\
                                 cloneMapFileName  = None,\
                                 LatitudeLongitude = True,\
                                 specificFillValue = None):
-    # 
     # EHS (19 APR 2013): To convert netCDF (tss) file to PCR file.
     # --- with clone checking
     #     Only works if cells are 'square'.
@@ -689,7 +686,13 @@ def readDownscalingMeteo(ncFile,\
         array = xr.DataArray(cropData, dims=['latitude', 'longitude'],
                                     coords=dict(longitude=f.variables['lon'][xIdxSta:xIdxEnd], 
                                                 latitude=f.variables['lat'][yIdxSta:yIdxEnd])).sortby('latitude')
+        missing_values = pyinterp.backends.xarray.Grid2D(array, geodetic=False)
+        missing_values = pyinterp.fill.loess(missing_values, nx=3, ny=3, num_threads=0)
+        array.data = missing_values.T
+        del missing_values
+
         interpolator = pyinterp.backends.xarray.Grid2D(array, geodetic=False)
+
         mx, my = np.meshgrid(lon, lat, indexing="ij")
         cropData = interpolator.bivariate(coords=dict(longitude=mx.ravel(), latitude=my.ravel()),
                                                  num_threads=0)#.reshape(mx.shape)
@@ -698,7 +701,6 @@ def readDownscalingMeteo(ncFile,\
                                         coords=dict(longitude=lon,
                                                  latitude=lat)).sortby('latitude', ascending=False)
         cropData = cropData.values
-    
     #     # get resampling factors
     #     factor = int(round(float(cellsizeInput)/float(cellsizeClone)))
     #     if factor > 1: logger.debug('Resample: input cell size = '+str(float(cellsizeInput))+' ; output/clone cell size = '+str(float(cellsizeClone)))
@@ -2228,7 +2230,6 @@ def readPCRmapClone(v, cloneMapFileName, tmpDir, absolutePath = None, isLddMap =
     if iter_try >= max_num_of_tries:
         logger.error("CANNOT READ file: " + str(v))
         return singleTryReadPCRmapClone(v, cloneMapFileName, tmpDir, absolutePath, isLddMap, cover, isNomMap)
-
     
 def singleTryReadPCRmapClone(v, cloneMapFileName, tmpDir, absolutePath = None, isLddMap = False, cover = None, isNomMap = False):
     # v: inputMapFileName or floating values
