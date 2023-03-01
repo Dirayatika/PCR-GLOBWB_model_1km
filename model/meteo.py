@@ -574,7 +574,7 @@ class Meteo(object):
                 self.extraterestrial_radiation  = pcr.max(0.0, self.extraterestrial_radiation) 
             else:
                 self.extraterestrial_radiation  = pcr.max(0.0, self.extraterestrial_radiation / 1e6) / 0.0864
-
+                
             #~ # debug
             #~ pcr.aguila(self.extraterestrial_radiation)
             #~ input("Press Enter to continue...")
@@ -644,7 +644,7 @@ class Meteo(object):
                 self.shortwave_radiation = pcr.max(0.0, self.shortwave_radiation) 
             else:
                 self.shortwave_radiation = pcr.max(0.0, self.shortwave_radiation / 1e6) / 0.0864
-
+            
             #~ # debug
             #~ pcr.aguila(self.shortwave_radiation)
             #~ input("Press Enter to continue...")
@@ -675,14 +675,14 @@ class Meteo(object):
                 # fraction of shortWaveRadiation (dimensionless)
                 fractionShortWaveRadiation = pcr.cover(pcr.min(1.0, \
                                                         self.shortwave_radiation / self.extraterestrial_radiation), 0.0)
-            
+    
+
                 # longwave radiation (already) in W.m**-2
                 self.longwave_radiation = penman_monteith.getLongWaveRadiation(self.temperature, \
                                                                                vapourPressure, \
                                                                                fractionShortWaveRadiation, \
                                                                                self.relative_humidity)
 
-            
             # calculate net radiation (unit: W.m**-2)
             self.net_radiation = pcr.max(0.0, self.shortwave_radiation - self.longwave_radiation)
             
@@ -694,6 +694,7 @@ class Meteo(object):
                                                                                   unsatVapPressure    = vapourPressure, 
                                                                                   relativeHumidity    = self.relative_humidity,\
                                                                                   timeStepLength      = 86400)
+
 
 
         # Downscaling referenceETPot (based on temperature)
@@ -884,10 +885,11 @@ class Meteo(object):
         # TODO: add CorrelationCriteria in the config file
         if read_factor_from_file==True:
 
-            factor = vos.readDownscalingZarr(self.precip_downscaling_factor_file, 'automatic', \
+            factor = vos.readDownscalingZarr(self.precip_downscaling_factor_file, \
                                             currTimeStep.doy, useDoy = "Yes",\
                                             cloneMapFileName = self.cloneMap)
-            drizzle_limit = vos.readDownscalingZarr(self.precip_drydays_file, 'automatic',
+            drizzle_limit = vos.readDownscalingZarr(self.precip_drydays_file,
+                                                    currTimeStep.month, useDoy = "Yes",
                                                     cloneMapFileName = self.cloneMap)
 
             self.precipitation = pcr.ifthenelse(self.precipitation > drizzle_limit, self.precipitation, 0.00)
@@ -945,7 +947,7 @@ class Meteo(object):
         
         # TODO: add CorrelationCriteria in the config file
         if read_factor_from_file == True:
-            factor = vos.readDownscalingZarr(self.temp_downscaling_factor_file, 'automatic', \
+            factor = vos.readDownscalingZarr(self.temp_downscaling_factor_file, \
                                             currTimeStep.doy, useDoy = "Yes",\
                                             cloneMapFileName = self.cloneMap)
             self.temperature = self.temperature + factor
@@ -1012,7 +1014,7 @@ class Meteo(object):
 
     def downscaleReferenceETPot(self, currTimeStep, read_factor_from_file=False, zeroCelciusInKelvin = 273.15, usingHamon = True, considerCellArea = True, min_limit = 0.001):
         if read_factor_from_file == True:
-            factor = vos.readDownscalingZarr(self.evap_downscaling_factor_file, 'automatic', \
+            factor = vos.readDownscalingZarr(self.evap_downscaling_factor_file, \
                                             currTimeStep.doy, useDoy = "Yes",\
                                             cloneMapFileName = self.cloneMap)
             self.referencePotET = self.referencePotET * factor
