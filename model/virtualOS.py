@@ -132,24 +132,22 @@ def readDownscalingZarr(ncFile,\
     cropData = f[varName].get_orthogonal_selection((slice(xIdxSta,xIdxEnd), slice(yIdxSta,yIdxEnd), timeID))
 
     cropData = cropData.transpose()
+    cropData = np.nan_to_num(cropData)
 
     # convert to PCR object and close f 
     if specificFillValue != None:
         outPCR = pcr.numpy2pcr(pcr.Scalar, \
                                 cropData, 
-                #   regridData2FinerGrid(factor, cropData, float(specificFillValue)), \
                   float(specificFillValue))
     else:
         try:
             outPCR = pcr.numpy2pcr(pcr.Scalar, \
                                 cropData, 
-                #   regridData2FinerGrid(factor, cropData, float(f[varName].fill_value)), \
                   float(f[varName].fill_value))
         except:
             outPCR = pcr.numpy2pcr(pcr.Scalar, \
                                 cropData, 
-                #   regridData2FinerGrid(factor, cropData, float(MV)), \
-                  float(MV))
+                                float(MV)) 
     return (outPCR)
 
 def readDownscalingMeteo(ncFile,\
@@ -416,7 +414,6 @@ def readDownscalingMeteo(ncFile,\
             # standard nc file
             cropData = f.variables[varName][int(idx),  yIdxSta:yIdxEnd,xIdxSta:xIdxEnd]       # selection of original data
 
-##################################
         lon = pcr.pcr2numpy(pcr.xcoordinate(pcr.defined(cloneMapFileName)), np.nan)[0, :]
         lat = pcr.pcr2numpy(pcr.ycoordinate(pcr.defined(cloneMapFileName)), np.nan)[:, 0]
         array = xr.DataArray(cropData, dims=['latitude', 'longitude'],

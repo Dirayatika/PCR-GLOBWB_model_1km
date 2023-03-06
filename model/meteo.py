@@ -942,6 +942,7 @@ class Meteo(object):
                 self.precipitation = self.precipitation + preSlope*self.anomalyDEM
 
         self.precipitation = pcr.max(0.0, self.precipitation)
+        
 
     def downscaleTemperature(self, currTimeStep, read_factor_from_file = False, useFactor = False, maxCorrelationCriteria = -0.75, zeroCelciusInKelvin = 273.15, considerCellArea = True):
         
@@ -951,8 +952,6 @@ class Meteo(object):
                                             currTimeStep.doy, useDoy = "Yes",\
                                             cloneMapFileName = self.cloneMap)
             self.temperature = self.temperature + factor
-
-
         else:
             tmpSlope = 1.000 * vos.netcdf2PCRobjClone(\
                             self.temperLapseRateNC, 'temperature',\
@@ -970,6 +969,7 @@ class Meteo(object):
             tmpSlope = pcr.cover(tmpSlope, 0.0)
         
             if useFactor == True:
+
                 temperatureInKelvin = self.temperature + zeroCelciusInKelvin
                 factor = pcr.max(0.0, temperatureInKelvin + tmpSlope * self.anomalyDEM)
                 if considerCellArea: factor = factor * self.cellArea
