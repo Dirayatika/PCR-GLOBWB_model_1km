@@ -75,7 +75,6 @@ max_num_of_tries = 5
 
 
 def readDownscalingZarr(ncFile,\
-                                # varName = "automatic" ,
                                 dateInput = None,\
                                 useDoy = None,\
                                 cloneMapFileName  = None,\
@@ -189,61 +188,6 @@ def readDownscalingMeteo(ncFile,\
         for var in nc_vars:                   
             if var not in nc_dims and var not in ["lat", "lon", "latitude", "longitude"]: varName = var
         logger.debug('reading variable: '+str(varName)+' from the file: '+str(ncFile))
-    
-    if varName == "evapotranspiration":        
-        try:
-            f.variables['evapotranspiration'] = f.variables['referencePotET']
-        except:
-            pass
-
-    if varName == "kc":   # the variable name in PCR-GLOBWB     
-       try:
-           f.variables['kc'] = \
-                f.variables['Cropcoefficient']  # the variable name in the netcdf file
-       except:
-           pass
-
-    if varName == "interceptCapInput":   # the variable name in PCR-GLOBWB     
-       try:
-           f.variables['interceptCapInput'] = \
-                f.variables['Interceptioncapacity']  # the variable name in the netcdf file
-       except:
-           pass
-
-    if varName == "coverFractionInput":   # the variable name in PCR-GLOBWB     
-       try:
-           f.variables['coverFractionInput'] = \
-                f.variables['Coverfraction']  # the variable name in the netcdf file
-       except:
-           pass
-
-    if varName == "fracVegCover":   # the variable name in PCR-GLOBWB     
-       try:
-           f.variables['fracVegCover'] = \
-                f.variables['vegetation_fraction']  # the variable name in the netcdf file
-       except:
-           pass
-
-    if varName == "minSoilDepthFrac":   # the variable name in PCR-GLOBWB     
-       try:
-           f.variables['minSoilDepthFrac'] = \
-                f.variables['minRootDepthFraction']  # the variable name in the netcdf file
-       except:
-           pass
-
-    if varName == "maxSoilDepthFrac":   # the variable name in PCR-GLOBWB     
-       try:
-           f.variables['maxSoilDepthFrac'] = \
-                f.variables['maxRootDepthFraction']  # the variable name in the netcdf file
-       except:
-           pass
-
-    if varName == "arnoBeta":   # the variable name in PCR-GLOBWB     
-       try:
-           f.variables['arnoBeta'] = \
-                f.variables['arnoSchemeBeta']  # the variable name in the netcdf file
-       except:
-           pass
 
     if dateInput == None:
         logger.debug('Using the first time step in the netcdf file.')
@@ -251,7 +195,6 @@ def readDownscalingMeteo(ncFile,\
         if len(f.variables['time']) > 1: logger.warning('NOTE that there are more than one time steps in the netcdf file.')
         
     else:
-        
         # date
         date = dateInput
         if useDoy == "Yes": 
@@ -340,30 +283,16 @@ def readDownscalingMeteo(ncFile,\
     date_string = nc.num2date(f.variables['time'][int(idx)], f.variables['time'].units, f.variables['time'].calendar)
     logger.debug('Using the datetime '+str(date_string))
 
-    # sameClone = True
-    sameClone = False
-    # # check whether clone and input maps have the same attributes:
-    # if cloneMapFileName != None:
-    #     # get the attributes of cloneMap
+    # sameClone = False
     attributeClone = getMapAttributesALL(cloneMapFileName)
     cellsizeClone = attributeClone['cellsize']
     rowsClone = attributeClone['rows']
     colsClone = attributeClone['cols']
     xULClone = attributeClone['xUL']
     yULClone = attributeClone['yUL']
-    #     # get the attributes of input (netCDF) 
+    # get the attributes of input (netCDF) 
     cellsizeInput = f.variables['lat'][0]- f.variables['lat'][1]
     cellsizeInput = float(cellsizeInput)
-    #     rowsInput = len(f.variables['lat'])
-    #     colsInput = len(f.variables['lon'])
-    #     xULInput = f.variables['lon'][0]-0.5*cellsizeInput
-    #     yULInput = f.variables['lat'][0]+0.5*cellsizeInput
-    #     # check whether both maps have the same attributes 
-    #     if cellsizeClone != cellsizeInput: sameClone = False
-    #     if rowsClone != rowsInput: sameClone = False
-    #     if colsClone != colsInput: sameClone = False
-    #     if xULClone != xULInput: sameClone = False
-    #     if yULClone != yULInput: sameClone = False
 
 
     # check data on dimensions - this correction is needed in case of the WFDEI_Forcing which has includes levels for surface varables (time, height/level, lat, lon)
@@ -378,77 +307,66 @@ def readDownscalingMeteo(ncFile,\
 
 
     factor = 1                                 # needed in regridData2FinerGrid
-    if sameClone == False:
+    factor = int(round(float(cellsizeInput)/float(cellsizeClone)))
 
-        factor = int(round(float(cellsizeInput)/float(cellsizeClone)))
+    # crop to cloneMap:
+    minX    = min(abs(f.variables['lon'][:] - (xULClone + 0.5*cellsizeInput)))# ; print(minX)
+    xIdxSta = int(np.where(abs(f.variables['lon'][:] - (xULClone + 0.5*cellsizeInput)) == minX)[0]) -1
 
-        # crop to cloneMap:
-        minX    = min(abs(f.variables['lon'][:] - (xULClone + 0.5*cellsizeInput)))# ; print(minX)
+    #~ xIdxSta = int(np.where(np.abs(f.variables['lon'][:] - (xULClone - cellsizeInput/2)) == minX)[0][0])
+    #~ # see: https://github.com/UU-Hydro/PCR-GLOBWB_model/pull/13
 
-        xIdxSta = int(np.where(abs(f.variables['lon'][:] - (xULClone + 0.5*cellsizeInput)) == minX)[0]) -1
+    #~ xIdxEnd = int(math.ceil(xIdxSta + colsClone /(cellsizeInput/cellsizeClone)))
+    xIdxEnd = int(math.ceil((xIdxSta+1) + colsClone /(factor))) + 1
 
-        #~ xIdxSta = int(np.where(np.abs(f.variables['lon'][:] - (xULClone - cellsizeInput/2)) == minX)[0][0])
-        #~ # see: https://github.com/UU-Hydro/PCR-GLOBWB_model/pull/13
+    minY    = min(abs(f.variables['lat'][:] - (yULClone - 0.5*cellsizeInput))) # ; print(minY)
 
-        #~ xIdxEnd = int(math.ceil(xIdxSta + colsClone /(cellsizeInput/cellsizeClone)))
-        xIdxEnd = int(math.ceil((xIdxSta+1) + colsClone /(factor))) + 1
+    yIdxSta = int(np.where(abs(f.variables['lat'][:] - (yULClone - 0.5*cellsizeInput)) == minY)[0]) -1
 
-        minY    = min(abs(f.variables['lat'][:] - (yULClone - 0.5*cellsizeInput))) # ; print(minY)
+    #~ yIdxSta = int(np.where(np.abs(f.variables['lat'][:] - (yULClone - cellsizeInput/2)) == minY)[0][0])
+    #~ # see: https://github.com/UU-Hydro/PCR-GLOBWB_model/pull/13
 
-        yIdxSta = int(np.where(abs(f.variables['lat'][:] - (yULClone - 0.5*cellsizeInput)) == minY)[0]) -1
+    #~ yIdxEnd = int(math.ceil(yIdxSta + rowsClone /(cellsizeInput/cellsizeClone)))
+    yIdxEnd = int(math.ceil((yIdxSta +1) + rowsClone /(factor))) + 1
 
-        #~ yIdxSta = int(np.where(np.abs(f.variables['lat'][:] - (yULClone - cellsizeInput/2)) == minY)[0][0])
-        #~ # see: https://github.com/UU-Hydro/PCR-GLOBWB_model/pull/13
+    # retrieve data from netCDF for slice
 
-        #~ yIdxEnd = int(math.ceil(yIdxSta + rowsClone /(cellsizeInput/cellsizeClone)))
-        yIdxEnd = int(math.ceil((yIdxSta +1) + rowsClone /(factor))) + 1
+    if f.variables[varName].ndim == 4:
+        # not standard NC format
+        logger.warning('WARNING: the netCDF file %s has an additional dimension for variable %s ; the last two are read as latitude, longitude' % (ncFile, varName))
+        #-file with additional layer
+        cropData = f.variables[varName][int(idx),0,yIdxSta:yIdxEnd,xIdxSta:xIdxEnd]     # selection of original data
+    else:
+        # standard nc file
+        cropData = f.variables[varName][int(idx),  yIdxSta:yIdxEnd,xIdxSta:xIdxEnd]       # selection of original data
 
-        # retrieve data from netCDF for slice
-
-        if f.variables[varName].ndim == 4:
-            # not standard NC format
-            logger.warning('WARNING: the netCDF file %s has an additional dimension for variable %s ; the last two are read as latitude, longitude' % (ncFile, varName))
-            #-file with additional layer
-            cropData = f.variables[varName][int(idx),0,yIdxSta:yIdxEnd,xIdxSta:xIdxEnd]     # selection of original data
-        else:
-            # standard nc file
-            cropData = f.variables[varName][int(idx),  yIdxSta:yIdxEnd,xIdxSta:xIdxEnd]       # selection of original data
-
-        lon = pcr.pcr2numpy(pcr.xcoordinate(pcr.defined(cloneMapFileName)), np.nan)[0, :]
-        lat = pcr.pcr2numpy(pcr.ycoordinate(pcr.defined(cloneMapFileName)), np.nan)[:, 0]
-        array = xr.DataArray(cropData, dims=['latitude', 'longitude'],
-                                    coords=dict(longitude=f.variables['lon'][xIdxSta:xIdxEnd], 
-                                                latitude=f.variables['lat'][yIdxSta:yIdxEnd])).sortby('latitude')
-
-        interpolator = pyinterp.backends.xarray.Grid2D(array, geodetic=False)
-
-        mx, my = np.meshgrid(lon, lat, indexing="ij")
-        cropData = interpolator.bivariate(coords=dict(longitude=mx.ravel(), latitude=my.ravel()),
-                                                 num_threads=0)#.reshape(mx.shape)
-        cropData = cropData.reshape(mx.shape).T
-        cropData = xr.DataArray(cropData, dims=['latitude', 'longitude'],
-                                        coords=dict(longitude=lon,
-                                                 latitude=lat)).sortby('latitude', ascending=False)
-        cropData = cropData.values
-    #     # get resampling factors
-    #     factor = int(round(float(cellsizeInput)/float(cellsizeClone)))
-    #     if factor > 1: logger.debug('Resample: input cell size = '+str(float(cellsizeInput))+' ; output/clone cell size = '+str(float(cellsizeClone)))
-
+    lon = pcr.pcr2numpy(pcr.xcoordinate(pcr.defined(cloneMapFileName)), np.nan)[0, :]
+    lat = pcr.pcr2numpy(pcr.ycoordinate(pcr.defined(cloneMapFileName)), np.nan)[:, 0]
+    array = xr.DataArray(cropData, dims=['latitude', 'longitude'],
+                                coords=dict(longitude=f.variables['lon'][xIdxSta:xIdxEnd], 
+                                            latitude=f.variables['lat'][yIdxSta:yIdxEnd])).sortby('latitude')
+    cropData = pyinterp.backends.xarray.Grid2D(array, geodetic=False)
+    mx, my = np.meshgrid(lon, lat, indexing="ij")
+    cropData = cropData.bivariate(coords=dict(longitude=mx.ravel(), latitude=my.ravel()),
+                                                num_threads=0)
+    cropData = cropData.reshape(mx.shape).T
+    cropData = xr.DataArray(cropData, dims=['latitude', 'longitude'],
+                                    coords=dict(longitude=lon,
+                                                latitude=lat)).sortby('latitude', ascending=False)
+    cropData = cropData.values
+   
     # # convert to PCR object and close f 
     if specificFillValue != None:
         outPCR = pcr.numpy2pcr(pcr.Scalar, \
-                # regridData2FinerGrid(factor, cropData, float(specificFillValue)), \
                 cropData, \
                 float(specificFillValue))
     else:
         try:
             outPCR = pcr.numpy2pcr(pcr.Scalar, \
-                # regridData2FinerGrid(factor, cropData, float(f.variables[varName]._FillValue)), \
                 cropData, \
                 float(f.variables[varName]._FillValue))
         except:
             outPCR = pcr.numpy2pcr(pcr.Scalar, \
-                # regridData2FinerGrid(factor, cropData, float(f.variables[varName].missing_value)),
                 cropData, \
                 float(f.variables[varName].missing_value))
 
