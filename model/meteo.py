@@ -371,6 +371,7 @@ class Meteo(object):
                 self.downscaleReferenceETPotOption = True 
                 logger.info("Reference potential evaporation will be downscaled to the cloneMap resolution.")
 
+
                 # Note that for the Hamon method: referencePotET will be calculated based on temperature,  
                 # therefore, we may not have to downscale it (particularly if temperature is already provided at high resolution). 
 
@@ -951,7 +952,29 @@ class Meteo(object):
             factor = vos.readDownscalingZarr(self.temp_downscaling_factor_file, \
                                             currTimeStep.doy, useDoy = "Yes",\
                                             cloneMapFileName = self.cloneMap)
+            
+            # import xarray as xr
+            # lon = pcr.pcr2numpy(pcr.xcoordinate(self.cloneMap), np.nan)[0, :]
+            # lat = pcr.pcr2numpy(pcr.ycoordinate(self.cloneMap), np.nan)[:, 0]
+            # cropData = pcr.pcr2numpy(self.temperature, np.nan)
+            # cropData = xr.DataArray(cropData, dims=['latitude', 'longitude'],
+            #                     coords=dict(longitude=lon, 
+            #                                 latitude=lat)).sortby('latitude')
+            # cropData.to_dataset(name='tas_corrected').to_zarr('/eejit/home/7006713/zview/tas_original', mode='w')
             self.temperature = self.temperature + factor
+
+            # cropData = pcr.pcr2numpy(self.temperature, np.nan)
+            # cropData = xr.DataArray(cropData, dims=['latitude', 'longitude'],
+            #                     coords=dict(longitude=lon, 
+            #                                 latitude=lat)).sortby('latitude')
+            # cropData.to_dataset(name='tas_corrected').to_zarr('/eejit/home/7006713/zview/tas_corrected', mode='w')
+
+            # cropData = pcr.pcr2numpy(factor, np.nan)
+            # cropData = xr.DataArray(cropData, dims=['latitude', 'longitude'],
+            #                     coords=dict(longitude=lon, 
+            #                                 latitude=lat)).sortby('latitude')
+            # cropData.to_dataset(name='tas_factor').to_zarr('/eejit/home/7006713/zview/tas_factor', mode='w')
+
         else:
             tmpSlope = 1.000 * vos.netcdf2PCRobjClone(\
                             self.temperLapseRateNC, 'temperature',\
@@ -1079,14 +1102,8 @@ class Meteo(object):
         if self.precipitation_set_per_year:
             netcdf_file_name = self.preFileNC %(int(currTimeStep.year), int(currTimeStep.year))
 
-        # ~ self.precipitation = vos.netcdf2PCRobjClone(\
-                                      # ~ netcdf_file_name, self.preVarName,\
-                                      # ~ str(currTimeStep.fulldate), 
-                                      # ~ useDoy = method_for_time_index,
-                                      # ~ cloneMapFileName = self.cloneMap,\
-                                      # ~ LatitudeLongitude = True)
 
-        if self.using_daily_factor_for_downscaling == True:
+        if self.using_daily_factor_for_downscaling & self.downscalePrecipitationOption == True:
             self.precipitation = vos.readDownscalingMeteo(\
                                         netcdf_file_name, "automatic",\
                                         str(currTimeStep.fulldate), 
@@ -1139,7 +1156,7 @@ class Meteo(object):
         if self.temperature_set_per_year:
             netcdf_file_name = self.tmpFileNC %(int(currTimeStep.year), int(currTimeStep.year))
 
-        if self.using_daily_factor_for_downscaling == True:
+        if self.using_daily_factor_for_downscaling & self.downscaleTemperatureOption == True:
             self.temperature = vos.readDownscalingMeteo(\
                                         netcdf_file_name, "automatic",\
                                         str(currTimeStep.fulldate), 
@@ -1193,7 +1210,7 @@ class Meteo(object):
                                           # ~ cloneMapFileName = self.cloneMap,\
                                           # ~ LatitudeLongitude = True)
 
-            if self.using_daily_factor_for_downscaling == True:
+            if self.using_daily_factor_for_downscaling & self.downscaleReferenceETPotOption == True:
                 self.referencePotET = vos.readDownscalingMeteo(\
                                             netcdf_file_name, "automatic",\
                                             str(currTimeStep.fulldate), 

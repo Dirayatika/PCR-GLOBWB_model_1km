@@ -108,7 +108,6 @@ def readDownscalingZarr(ncFile,\
     factor = 1                                 # needed in regridData2FinerGrid
     # if sameClone == False:
     minX    = min(abs(f[xRef][:] - (xULClone + 0.5*cellsizeInput)))
-
     xIdxSta = int(np.where(abs(f[xRef][:] - (xULClone + 0.5*cellsizeInput)) == minX)[0])
 
 #     #~ xIdxSta = int(np.where(np.abs(f.variables['lon'][:] - (xULClone - cellsizeInput/2)) == minX)[0][0])
@@ -128,15 +127,21 @@ def readDownscalingZarr(ncFile,\
     yIdxEnd = int(math.ceil(yIdxSta + rowsClone /(factor)))
 
     timeID = dateInput -1
-    cropData = f[varName].get_orthogonal_selection((slice(xIdxSta,xIdxEnd), slice(yIdxSta,yIdxEnd), timeID))
-
+    cropData = f[varName].get_basic_selection((slice(xIdxSta,xIdxEnd), slice(yIdxSta,yIdxEnd), timeID))[:]
     cropData = cropData.transpose()
     cropData = np.nan_to_num(cropData)
+   
+    lon = pcr.pcr2numpy(pcr.xcoordinate(cloneMapFileName), np.nan)[0, :]
+    lat = pcr.pcr2numpy(pcr.ycoordinate(cloneMapFileName), np.nan)[:, 0]
+    cropData = xr.DataArray(cropData, dims=['latitude', 'longitude'],
+                        coords=dict(longitude=lon, 
+                                    latitude=lat)).sortby('latitude', ascending=False)
+    cropData = cropData.values
 
     # convert to PCR object and close f 
     if specificFillValue != None:
         outPCR = pcr.numpy2pcr(pcr.Scalar, \
-                                cropData, 
+                                cropData,
                   float(specificFillValue))
     else:
         try:
@@ -147,6 +152,7 @@ def readDownscalingZarr(ncFile,\
             outPCR = pcr.numpy2pcr(pcr.Scalar, \
                                 cropData, 
                                 float(MV)) 
+    
     return (outPCR)
 
 def readDownscalingMeteo(ncFile,\
@@ -354,8 +360,7 @@ def readDownscalingMeteo(ncFile,\
                                     coords=dict(longitude=lon,
                                                 latitude=lat)).sortby('latitude', ascending=False)
     cropData = cropData.values
-   
-    # # convert to PCR object and close f 
+    # # convert to PR object and close f 
     if specificFillValue != None:
         outPCR = pcr.numpy2pcr(pcr.Scalar, \
                 cropData, \
@@ -369,9 +374,6 @@ def readDownscalingMeteo(ncFile,\
             outPCR = pcr.numpy2pcr(pcr.Scalar, \
                 cropData, \
                 float(f.variables[varName].missing_value))
-
-    # #~ pcr.aguila(outPCR)
-    
     # #f.close();
     
     # if useDoy == "daily_per_monthly_file": 
