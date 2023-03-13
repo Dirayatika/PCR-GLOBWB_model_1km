@@ -1987,7 +1987,6 @@ def readPCRmap(v):
     return PCRmap    
 
 def isSameClone(inputMapFileName,cloneMapFileName):  
-    print(inputMapFileName)  
     # reading inputMap:
     attributeInput = getMapAttributesALL(inputMapFileName)
     cellsizeInput = attributeInput['cellsize']
