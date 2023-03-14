@@ -885,9 +885,11 @@ class Meteo(object):
         
         # TODO: add CorrelationCriteria in the config file
         if read_factor_from_file==True:
-
+   
+            doyStep = currTimeStep.doy
+            if calendar.isleap(currTimeStep.year) and doyStep > 59: doyStep=doyStep-1
             factor = vos.readDownscalingZarr(self.precip_downscaling_factor_file, \
-                                            currTimeStep.doy, useDoy = "Yes",\
+                                            doyStep, useDoy = "Yes",\
                                             cloneMapFileName = self.cloneMap)
             drizzle_limit = vos.readDownscalingZarr(self.precip_drydays_file,
                                                     currTimeStep.month, useDoy = "Yes",
@@ -895,10 +897,8 @@ class Meteo(object):
 
             self.precipitation = pcr.ifthenelse(self.precipitation > drizzle_limit, self.precipitation, 0.00)
             #TODO use this one too?
-
             self.precipitation = self.precipitation * factor
             self.precipitation = pcr.max(0.0, self.precipitation)
-
 
         else:
             preSlope = 0.001 * vos.netcdf2PCRobjClone(\
@@ -949,8 +949,10 @@ class Meteo(object):
         
         # TODO: add CorrelationCriteria in the config file
         if read_factor_from_file == True:
+            doyStep = currTimeStep.doy
+            if calendar.isleap(currTimeStep.year) and doyStep > 59: doyStep=doyStep-1
             factor = vos.readDownscalingZarr(self.temp_downscaling_factor_file, \
-                                            currTimeStep.doy, useDoy = "Yes",\
+                                            doyStep, useDoy = "Yes",\
                                             cloneMapFileName = self.cloneMap)
             
             # import xarray as xr
@@ -1037,8 +1039,10 @@ class Meteo(object):
 
     def downscaleReferenceETPot(self, currTimeStep, read_factor_from_file=False, zeroCelciusInKelvin = 273.15, usingHamon = True, considerCellArea = True, min_limit = 0.001):
         if read_factor_from_file == True:
+            doyStep = currTimeStep.doy
+            if calendar.isleap(currTimeStep.year) and doyStep > 59: doyStep=doyStep-1
             factor = vos.readDownscalingZarr(self.evap_downscaling_factor_file, \
-                                            currTimeStep.doy, useDoy = "Yes",\
+                                            doyStep, useDoy = "Yes",\
                                             cloneMapFileName = self.cloneMap)
             self.referencePotET = self.referencePotET * factor
 
