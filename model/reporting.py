@@ -75,6 +75,7 @@ class Reporting(object):
         if self.configuration.debug_to_version_one: self.debug_to_version_one = True
 
     def initiate_reporting(self):
+        
         # output directory storing netcdf files:
         self.outNCDir  = str(self.configuration.outNCDir)
 
