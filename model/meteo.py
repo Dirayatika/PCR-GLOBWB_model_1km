@@ -954,28 +954,7 @@ class Meteo(object):
             factor = vos.readDownscalingZarr(self.temp_downscaling_factor_file, \
                                             doyStep, useDoy = "Yes",\
                                             cloneMapFileName = self.cloneMap)
-            
-            # import xarray as xr
-            # lon = pcr.pcr2numpy(pcr.xcoordinate(self.cloneMap), np.nan)[0, :]
-            # lat = pcr.pcr2numpy(pcr.ycoordinate(self.cloneMap), np.nan)[:, 0]
-            # cropData = pcr.pcr2numpy(self.temperature, np.nan)
-            # cropData = xr.DataArray(cropData, dims=['latitude', 'longitude'],
-            #                     coords=dict(longitude=lon, 
-            #                                 latitude=lat)).sortby('latitude')
-            # cropData.to_dataset(name='tas_corrected').to_zarr('/eejit/home/7006713/zview/tas_original', mode='w')
             self.temperature = self.temperature + factor
-
-            # cropData = pcr.pcr2numpy(self.temperature, np.nan)
-            # cropData = xr.DataArray(cropData, dims=['latitude', 'longitude'],
-            #                     coords=dict(longitude=lon, 
-            #                                 latitude=lat)).sortby('latitude')
-            # cropData.to_dataset(name='tas_corrected').to_zarr('/eejit/home/7006713/zview/tas_corrected', mode='w')
-
-            # cropData = pcr.pcr2numpy(factor, np.nan)
-            # cropData = xr.DataArray(cropData, dims=['latitude', 'longitude'],
-            #                     coords=dict(longitude=lon, 
-            #                                 latitude=lat)).sortby('latitude')
-            # cropData.to_dataset(name='tas_factor').to_zarr('/eejit/home/7006713/zview/tas_factor', mode='w')
 
         else:
             tmpSlope = 1.000 * vos.netcdf2PCRobjClone(\
