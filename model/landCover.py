@@ -33,10 +33,7 @@ logger = logging.getLogger(__name__)
 
 import virtualOS as vos
 from ncConverter import *
-
-#%% ADDED BY JOREN: START
 import numpy as np
-#%% ADDED BY JOREN: STOP
 
 class LandCover(object):
 
@@ -143,25 +140,16 @@ class LandCover(object):
                                             self.tmpDir,self.inputDir)
             vars(self)[var] = pcr.spatial(pcr.scalar(vars(self)[var]))
         
-            
+        self.cellArea = vos.readPCRmapClone(iniItems.routingOptions['cellAreaMap'],self.cloneMap,self.tmpDir,self.inputDir)  
         #%%ADDED BY JOREN:START
-        
         #Initialise Snow Transport
-        if "snowTransport" in list(self.iniItemsLC.keys()):
+        if "snowTransport" in list(self.iniItemsLC.keys())and self.iniItemsLC['snowTransport'] != "None":
             self.snowTransport = self.iniItemsLC['snowTransport']
-        else:
-            self.snowTransport = False
 
-        
-        if self.snowTransport!=False:
-            logger.info("Initialising Snow Transport...")
+            logger.info("Initialising FreyAndHolzmann Snow Transport...")
             #Reading cell characteristics for snow transport (which is actually a kind of routing)
             self.gradient = vos.readPCRmapClone(iniItems.routingOptions[str('gradient')],\
-                             self.cloneMap,self.tmpDir,self.inputDir)
-            
-            self.cellArea = vos.readPCRmapClone(\
-                      iniItems.routingOptions['cellAreaMap'],
-                      self.cloneMap,self.tmpDir,self.inputDir)
+                            self.cloneMap,self.tmpDir,self.inputDir)
 
             self.cellSizeInArcDeg = vos.getMapAttributes(self.cloneMap,"cellsize")  
             cellSizeInArcMin    =  self.cellSizeInArcDeg*60.
@@ -172,11 +160,13 @@ class LandCover(object):
 
             try: self.highResolutionDEM = vos.readPCRmapClone(\
                                 iniItems.meteoDownscalingOptions['highResolutionDEM'],
-                                       self.cloneMap,self.tmpDir,self.inputDir)
+                                    self.cloneMap,self.tmpDir,self.inputDir)
             except: self.highResolutionDEM = vos.readPCRmapClone(\
-                                       iniItems.meteoOptions['highResolutionDEM'],
-                                       self.cloneMap,self.tmpDir,self.inputDir)
-            
+                                    iniItems.meteoOptions['highResolutionDEM'],
+                                self.cloneMap,self.tmpDir,self.inputDir)
+        
+
+
             #HACK replaced iwth Edwin's tanslop file
             #region JOREN's Gradient Code
             #Be smart: add these kind of things to the landsurface or routing at a later stage
@@ -204,7 +194,6 @@ class LandCover(object):
             tanSlopeNC = vos.getFullPath(self.iniItemsLC['tanslopeNC'], self.inputDir)
             self.angle = vos.netcdf2PCRobjCloneWithoutTime(tanSlopeNC, 'tanslope', cloneMapFileName = self.cloneMap)
             
-            logger.info("Initialising Frey and Holzmann...")
             input = self.iniItemsLC['Hv']
             vars(self)['Hv'] = vos.readPCRmapClone(input,self.cloneMap,
                                             self.tmpDir,self.inputDir)
@@ -223,7 +212,9 @@ class LandCover(object):
             self.downstreamCells=pcr.upstream(self.reverseLDD, ones)
             self.downstreamCells=pcr.ifthenelse(self.downstreamCells==0, 1.0, self.downstreamCells)
         
-        #%%ADDED BY JOREN:STOP
+        else:
+            self.snowTransport=False
+    #%%ADDED BY JOREN:STOP
 
         # initialization some variables
         self.fractionArea        = None           # area (m2) of a certain land cover type ; will be assigned by the landSurface module
