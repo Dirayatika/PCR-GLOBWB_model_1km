@@ -182,9 +182,13 @@ class LandSurface(object):
                           'livestockWaterWithdrawal',
                           'nonIrrReturnFlow',
                           'irrigationTranspirationDeficit']
-        #
+
+        #ADDED BY JOREN: START
+        self.fluxVars   +=['incomingVolSnow', 'transportVolSnow', 'incomingFreeWater', 'transportFreeWater']
+        #ADDED BY JOREN: STOP
+        
         # specific variables for 2 and 3 layer soil models:
-        #
+        
         if self.numberOfSoilLayers == 2:
             self.mainStates += ['storUpp','storLow']
             self.stateVars  += self.mainStates

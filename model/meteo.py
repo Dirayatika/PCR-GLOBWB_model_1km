@@ -221,7 +221,6 @@ class Meteo(object):
         self.temperature_set_per_year    = iniItems.meteoOptions['temperature_set_per_year'] == "True"
         self.refETPotFileNC_set_per_year = iniItems.meteoOptions['refETPotFileNC_set_per_year'] == "True" 
         
-        
         # option for downscaling meteo using daily climatological factor
         self.using_daily_factor_for_downscaling = False
         if "using_daily_factor_for_downscaling" in list(iniItems.meteoDownscalingOptions.keys()) and iniItems.meteoDownscalingOptions['using_daily_factor_for_downscaling'] == "True":
@@ -233,8 +232,6 @@ class Meteo(object):
 
 
             # TODO: expand this for T and ET0
-        
-
         # make the iniItems available for the other modules:
         self.iniItems = iniItems
         
@@ -453,9 +450,8 @@ class Meteo(object):
 
         # Downscaling precipitation
         self.precipitation_before_downscaling = pcr.ifthen(self.landmask, self.precipitation)
-        
         if self.downscalePrecipitationOption: self.downscalePrecipitation(currTimeStep, read_factor_from_file = self.using_daily_factor_for_downscaling)
-
+      
         # downscaling temperature average       
         self.temperature_before_downscaling = pcr.ifthen(self.landmask, self.temperature)
         if self.downscaleTemperatureOption: self.downscaleTemperature(currTimeStep, read_factor_from_file = self.using_daily_factor_for_downscaling)
