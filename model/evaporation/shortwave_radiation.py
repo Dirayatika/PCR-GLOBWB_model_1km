@@ -77,6 +77,9 @@ pi = math.pi
 #############
 
 # conversions to and from radians
+def deg2rad(a):
+
+    return a * pi / 180.0
 
 def rad2deg(a):
     
