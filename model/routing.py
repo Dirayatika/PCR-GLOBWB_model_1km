@@ -1108,9 +1108,9 @@ class Routing(object):
         # - put the upstream discharge into the current calculate basin
         total_upstream_discharge = pcr.upstream(self.ldd_complete, total_upstream_discharge)
         # - consider only values within the landmask
-        upstream_discharge       = pcr.ifthen(self.landmask, total_upstream_discharge)
+        self.total_upstream_discharge = pcr.ifthen(self.landmask, total_upstream_discharge)
         # - add upstream discharge to the channelStorage (m3)
-        self.channelStorage      = pcr.cover(self.upstream_discharge, 0.0) * 3600. * 24. + self.channelStorage
+        self.channelStorage           = pcr.cover(self.total_upstream_discharge, 0.0) * 3600. * 24. + self.channelStorage
 
         # update channelStorage (unit: m3) after actSurfaceWaterAbstraction 
         self.channelStorage -= landSurface.actSurfaceWaterAbstract * self.cellArea
