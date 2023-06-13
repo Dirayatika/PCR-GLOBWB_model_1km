@@ -116,6 +116,9 @@ class Routing(object):
         self.landmask = pcr.ifthen(pcr.defined(self.lddMap), self.landmask)
         self.landmask = pcr.cover(self.landmask, pcr.boolean(0))   
 
+        # ldd complete, required to read upstream discharge
+        self.ldd_complete = self.lddMap
+        
         # ldd mask 
         self.lddMap = pcr.lddmask(self.lddMap, self.landmask)
 
@@ -321,6 +324,13 @@ class Routing(object):
         if 'maxFloodDepth' in list(iniItems.routingOptions.keys()):
             self.maxFloodDepth = vos.readPCRmapClone(iniItems.routingOptions['maxFloodDepth'], self.cloneMap, self.tmpDir, self.inputDir)
         
+
+        # input file for upstrem discharge (from upstream basins)
+        self.upstream_discharge_input_files = None
+        if "upstream_discharge_input_files" in list(iniItems.routingOptions.keys()):
+            self.upstream_discharge_input_files = iniItems.routingOptions["upstream_discharge_input_files"].split(",")
+        
+
         # initiate old style reporting                                  # This is still very useful during the 'debugging' process. 
         self.initiate_old_style_routing_reporting(iniItems)
 
@@ -407,6 +417,10 @@ class Routing(object):
         if self.waterBodyStorage is not None:
             self.waterBodyStorage = pcr.ifthen(self.landmask, pcr.cover(self.waterBodyStorage, 0.0))
 
+
+
+            
+            
 
     def estimateBankfullDischarge(self, bankfullWidth, factor = 4.8):
 
@@ -1077,6 +1091,26 @@ class Routing(object):
         # update channelStorage (unit: m3) after runoff
         self.channelStorage += self.runoff * self.cellArea
         self.local_input_to_surface_water += self.runoff * self.cellArea
+
+        # UNTIL THIS PART - CONTINUE FROM THIS
+        
+        # upstream discharge, unit: m3.s-1
+        total_upstream_discharge = pcr.spatial(pcr.scalar(0.0))
+        if self.upstream_discharge_input_files is None:
+            for i_ups_file in range(0, len(self.upstream_discharge_input_files)):
+                upstream_discharge_input_file = self.upstream_discharge_input_files[i_ups_file]
+                upstream_discharge  = vos.netcdf2PCRobjClone(\
+                                                            self.upstream_discharge_input_file, "automatic",\
+                                                            str(currTimeStep.fulldate), 
+                                                            useDoy = None
+                                                            )
+                total_upstream_discharge = total_upstream_discharge + pcr.cover(self.upstream_discharge, 0.0)
+        # - put the upstream discharge into the current calculate basin
+        total_upstream_discharge = pcr.upstream(self.ldd_complete, total_upstream_discharge)
+        # - consider only values within the landmask
+        self.total_upstream_discharge = pcr.ifthen(self.landmask, total_upstream_discharge)
+        # - add upstream discharge to the channelStorage (m3)
+        self.channelStorage           = pcr.cover(self.total_upstream_discharge, 0.0) * 3600. * 24. + self.channelStorage
 
         # update channelStorage (unit: m3) after actSurfaceWaterAbstraction 
         self.channelStorage -= landSurface.actSurfaceWaterAbstract * self.cellArea
