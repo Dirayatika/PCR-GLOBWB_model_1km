@@ -105,39 +105,49 @@ def readDownscalingZarr(ncFile,\
     cellsizeInput = f[yRef][0] - f[yRef][1] 
     cellsizeInput = float(cellsizeInput)
 
-    factor = 1                                 # needed in regridData2FinerGrid
-    # if sameClone == False:
-    minX    = min(abs(f[xRef][:] - (xULClone + 0.5*cellsizeInput)))
-    xIdxSta = int(np.where(abs(f[xRef][:] - (xULClone + 0.5*cellsizeInput)) == minX)[0])
+#     factor = 1                                 # needed in regridData2FinerGrid
+#     # if sameClone == False:
+#     minX    = min(abs(f[xRef][:] - (xULClone + 0.5*cellsizeInput)))
+#     xIdxSta = int(np.where(abs(f[xRef][:] - (xULClone + 0.5*cellsizeInput)) == minX)[0])
 
-#     #~ xIdxSta = int(np.where(np.abs(f.variables['lon'][:] - (xULClone - cellsizeInput/2)) == minX)[0][0])
-#     #~ # see: https://github.com/UU-Hydro/PCR-GLOBWB_model/pull/13
+# #     #~ xIdxSta = int(np.where(np.abs(f.variables['lon'][:] - (xULClone - cellsizeInput/2)) == minX)[0][0])
+# #     #~ # see: https://github.com/UU-Hydro/PCR-GLOBWB_model/pull/13
 
-#     #~ xIdxEnd = int(math.ceil(xIdxSta + colsClone /(cellsizeInput/cellsizeClone)))
-    xIdxEnd = int(math.ceil(xIdxSta + colsClone /(factor)))
+# #     #~ xIdxEnd = int(math.ceil(xIdxSta + colsClone /(cellsizeInput/cellsizeClone)))
+#     xIdxEnd = int(math.ceil(xIdxSta + colsClone /(factor)))
 
-    minY    = min(abs(f[yRef][:] - (yULClone - 0.5*cellsizeInput))) # ; print(minY)
+#     minY    = min(abs(f[yRef][:] - (yULClone - 0.5*cellsizeInput))) # ; print(minY)
 
-    yIdxSta = int(np.where(abs(f[yRef][:] - (yULClone - 0.5*cellsizeInput)) == minY)[0])
+#     yIdxSta = int(np.where(abs(f[yRef][:] - (yULClone - 0.5*cellsizeInput)) == minY)[0])
 
-#     #~ yIdxSta = int(np.where(np.abs(f.variables['lat'][:] - (yULClone - cellsizeInput/2)) == minY)[0][0])
-#     #~ # see: https://github.com/UU-Hydro/PCR-GLOBWB_model/pull/13
+# #     #~ yIdxSta = int(np.where(np.abs(f.variables['lat'][:] - (yULClone - cellsizeInput/2)) == minY)[0][0])
+# #     #~ # see: https://github.com/UU-Hydro/PCR-GLOBWB_model/pull/13
 
-#     #~ yIdxEnd = int(math.ceil(yIdxSta + rowsClone /(cellsizeInput/cellsizeClone)))
-    yIdxEnd = int(math.ceil(yIdxSta + rowsClone /(factor)))
+# #     #~ yIdxEnd = int(math.ceil(yIdxSta + rowsClone /(cellsizeInput/cellsizeClone)))
+#     yIdxEnd = int(math.ceil(yIdxSta + rowsClone /(factor)))
 
     timeID = dateInput -1
-    cropData = f[varName].get_basic_selection((slice(xIdxSta,xIdxEnd), slice(yIdxSta,yIdxEnd), timeID))[:]
-    cropData = cropData.transpose()
-    cropData = np.nan_to_num(cropData)
-   
+
+    # cropData = f[varName].get_basic_selection((slice(xIdxSta,xIdxEnd), slice(yIdxSta,yIdxEnd), timeID))[:]
+    cropData = f[varName].get_basic_selection((timeID, slice(None), slice(None)))[:]
+    cropData = np.nan_to_num(cropData).T
+
+    #### 
     lon = pcr.pcr2numpy(pcr.xcoordinate(cloneMapFileName), np.nan)[0, :]
     lat = pcr.pcr2numpy(pcr.ycoordinate(cloneMapFileName), np.nan)[:, 0]
     cropData = xr.DataArray(cropData, dims=['latitude', 'longitude'],
-                        coords=dict(longitude=lon, 
-                                    latitude=lat)).sortby('latitude', ascending=False)
-    cropData = cropData.values
+                        coords=dict(longitude=lon, latitude=lat)).sortby('latitude', ascending=False)
 
+    # import matplotlib
+    # import matplotlib.pyplot as plt
+    # from matplotlib import cm
+    # matplotlib.use('agg')
+    # fig, axes = plt.subplots(1, 1, figsize=(10.0, 10.0))
+
+    # plot_pet = cropData.plot()
+
+    # plt.savefig(f'/scratch/depfg/7006713/devTest/data/factor{varName}.png', transparent=True, facecolor=fig.get_facecolor(), bbox_inches='tight')
+    cropData = cropData.values
     # convert to PCR object and close f 
     if specificFillValue != None:
         outPCR = pcr.numpy2pcr(pcr.Scalar, \
@@ -323,7 +333,7 @@ def readDownscalingMeteo(ncFile,\
     #~ # see: https://github.com/UU-Hydro/PCR-GLOBWB_model/pull/13
 
     #~ xIdxEnd = int(math.ceil(xIdxSta + colsClone /(cellsizeInput/cellsizeClone)))
-    xIdxEnd = int(math.ceil((xIdxSta+1) + colsClone /(factor))) + 1
+    xIdxEnd = int(math.ceil((xIdxSta +1 ) + colsClone /(factor))) + 1 
 
     minY    = min(abs(f.variables['lat'][:] - (yULClone - 0.5*cellsizeInput))) # ; print(minY)
 
@@ -332,8 +342,9 @@ def readDownscalingMeteo(ncFile,\
     #~ yIdxSta = int(np.where(np.abs(f.variables['lat'][:] - (yULClone - cellsizeInput/2)) == minY)[0][0])
     #~ # see: https://github.com/UU-Hydro/PCR-GLOBWB_model/pull/13
 
-    #~ yIdxEnd = int(math.ceil(yIdxSta + rowsClone /(cellsizeInput/cellsizeClone)))
-    yIdxEnd = int(math.ceil((yIdxSta +1) + rowsClone /(factor))) + 1
+    # ~ yIdxEnd = int(math.ceil(yIdxSta + rowsClone /(cellsizeInput/cellsizeClone)))
+    yIdxEnd = int(math.ceil((yIdxSta +1) + rowsClone /(factor))) +1
+
 
     # retrieve data from netCDF for slice
 
@@ -345,23 +356,34 @@ def readDownscalingMeteo(ncFile,\
     else:
         # standard nc file
         cropData = f.variables[varName][int(idx),  yIdxSta:yIdxEnd,xIdxSta:xIdxEnd]       # selection of original data
-
     lon = pcr.pcr2numpy(pcr.xcoordinate(pcr.defined(cloneMapFileName)), np.nan)[0, :]
-    lat = pcr.pcr2numpy(pcr.ycoordinate(pcr.defined(cloneMapFileName)), np.nan)[:, 0]
+    lat = np.sort(pcr.pcr2numpy(pcr.ycoordinate(pcr.defined(cloneMapFileName)), np.nan)[:, 0])
+
     array = xr.DataArray(cropData, dims=['latitude', 'longitude'],
-                                coords=dict(longitude=f.variables['lon'][xIdxSta:xIdxEnd], 
-                                            latitude=f.variables['lat'][yIdxSta:yIdxEnd])).sortby('latitude')
-    cropData = pyinterp.backends.xarray.Grid2D(array, geodetic=False)
+                                coords=dict(latitude=f.variables['lat'][yIdxSta:yIdxEnd],
+                                             longitude=f.variables['lon'][xIdxSta:xIdxEnd])).sortby('latitude')
+
+    array = pyinterp.backends.xarray.Grid2D(array, geodetic=False)
     mx, my = np.meshgrid(lon, lat, indexing="ij")
-    cropData = cropData.bivariate(coords=dict(longitude=mx.ravel(), latitude=my.ravel()),
-                                                num_threads=0)
+    cropData = array.bivariate(coords=dict(longitude=mx.ravel(), latitude=my.ravel()), num_threads=1)
     cropData = cropData.reshape(mx.shape).T
+
     cropData = xr.DataArray(cropData, dims=['latitude', 'longitude'],
                                     coords=dict(longitude=lon,
                                                 latitude=lat)).sortby('latitude', ascending=False)
+    # import matplotlib
+    # import matplotlib.pyplot as plt
+    # from matplotlib import cm
+    # matplotlib.use('agg')
+    # fig, axes = plt.subplots(1, 1, figsize=(10.0, 10.0))
+
+    # plot_pet = cropData.plot()
+
+    # plt.savefig(f'/scratch/depfg/7006713/devTest/data/data{varName}.png', transparent=True, facecolor=fig.get_facecolor(), bbox_inches='tight')
+
     cropData = cropData.values
     # # convert to PR object and close f 
-    if specificFillValue != None:
+    if specificFillValue != None:   
         outPCR = pcr.numpy2pcr(pcr.Scalar, \
                 cropData, \
                 float(specificFillValue))
@@ -373,7 +395,7 @@ def readDownscalingMeteo(ncFile,\
         except:
             outPCR = pcr.numpy2pcr(pcr.Scalar, \
                 cropData, \
-                float(f.variables[varName].missing_value))
+                float(MV))
     # #f.close();
     
     # if useDoy == "daily_per_monthly_file": 
@@ -536,6 +558,40 @@ def singleTryNetcdf2PCRobjCloneWithoutTime(ncFile, varName,\
 
         if factor > 1: logger.debug('Resample: input cell size = '+str(float(cellsizeInput))+' ; output/clone cell size = '+str(float(cellsizeClone)))
     
+    
+    # fileList = ['/scratch/depfg/7006713/pcrglob_2306/soilgrids/frances/psiAir_average_1.nc',
+    #             '/scratch/depfg/7006713/pcrglob_2306/soilgrids/frances/psiAir_average_2.nc',
+    #             '/scratch/depfg/7006713/pcrglob_2306/soilgrids/frances/BCH_average_1.nc',
+    #             '/scratch/depfg/7006713/pcrglob_2306/soilgrids/frances/BCH_average_2.nc',
+    #             '/scratch/depfg/7006713/pcrglob_2306/soilgrids/frances/vmcRes_average_1.nc',
+    #             '/scratch/depfg/7006713/pcrglob_2306/soilgrids/frances/vmcRes_average_2.nc',
+    #             '/scratch/depfg/7006713/pcrglob_2306/soilgrids/frances/vmcSat_average_1.nc',
+    #             '/scratch/depfg/7006713/pcrglob_2306/soilgrids/frances/vmcSat_average_2.nc',
+    #             '/scratch/depfg/7006713/pcrglob_2306/soilgrids/frances/kSat_average_1.nc',
+    #             '/scratch/depfg/7006713/pcrglob_2306/soilgrids/frances/kSat_average_2.nc',
+    #             '/scratch/depfg/7006713/pcrglob_2306/soilgrids/frances/layerDepth_average_1.nc',
+    #             '/scratch/depfg/7006713/pcrglob_2306/soilgrids/frances/layerDepth_average_2.nc',
+    #             '/scratch/depfg/7006713/pcrglob_2306/soilgrids/frances/WHC_average_1.nc',
+    #             '/scratch/depfg/7006713/pcrglob_2306/soilgrids/frances/WHC_average_2.nc']
+
+    # if ncFile in fileList:
+    #     from pathlib import Path
+    #     name = Path(ncFile).name
+    #     lon = pcr.pcr2numpy(pcr.xcoordinate('/scratch/depfg/7006713/devTest/data/clone_dev.map'), np.nan)[0, :]
+    #     lat = pcr.pcr2numpy(pcr.ycoordinate('/scratch/depfg/7006713/devTest/data/clone_dev.map'), np.nan)[:, 0]
+    #     print(name, np.nansum(cropData))
+        # test = xr.DataArray(cropData, dims=['latitude', 'longitude'],
+        #                 coords=dict(longitude=lon, latitude=lat))#.sortby('latitude', ascending=False)
+        
+        # import matplotlib
+        # import matplotlib.pyplot as plt
+        # from matplotlib import cm
+        # matplotlib.use('agg')
+        # fig, axes = plt.subplots(1, 1, figsize=(10.0, 10.0))
+
+        # plot_pet = test.plot()
+
+        # plt.savefig(f'/scratch/depfg/7006713/devTest/data/frances/{name}.png', transparent=True, facecolor=fig.get_facecolor(), bbox_inches='tight')
 
     #~ # convert to PCR object and close f - OLD METHOD
     #~ if specificFillValue != None:
@@ -571,6 +627,8 @@ def singleTryNetcdf2PCRobjCloneWithoutTime(ncFile, varName,\
     f.close();
 
     f = None ; cropData = None 
+
+
 
     # PCRaster object
     return (outPCR)

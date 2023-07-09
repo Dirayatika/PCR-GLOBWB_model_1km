@@ -164,12 +164,16 @@ class LandCover(object):
             except: self.highResolutionDEM = vos.readPCRmapClone(\
                                     iniItems.meteoOptions['highResolutionDEM'],
                                 self.cloneMap,self.tmpDir,self.inputDir)
-        
+            
+            self.lddMap = vos.readPCRmapClone(\
+            iniItems.routingOptions['lddMap'],
+            iniItems.cloneMap,iniItems.tmpDir,iniItems.globalOptions['inputDir'],True)
+            #ensure ldd map is correct, and actually of type "ldd"
+            self.lddMap = pcr.lddrepair(pcr.ldd(self.lddMap))
 
-
-            #HACK replaced iwth Edwin's tanslop file
             #region JOREN's Gradient Code
-            #Be smart: add these kind of things to the landsurface or routing at a later stage
+            #HACK replaced iwth Edwin's tanslop file
+            # Be smart: add these kind of things to the landsurface or routing at a later stage
             # logger.info('Compute new gradient....')
             # elevation=pcr.pcr2numpy(self.highResolutionDEM, np.nan)
             # zonalDistance=pcr.pcr2numpy(self.zonalDistance, np.nan)
@@ -191,8 +195,10 @@ class LandCover(object):
             # self.angle=pcr.numpy2pcr(pcr.Scalar, angle, np.nan)  
             # logger.info('Finished with new gradient....')
             #endregion
+
             tanSlopeNC = vos.getFullPath(self.iniItemsLC['tanslopeNC'], self.inputDir)
             self.angle = vos.netcdf2PCRobjCloneWithoutTime(tanSlopeNC, 'tanslope', cloneMapFileName = self.cloneMap)
+            self.angle = vos.rad2deg(self.angle)
             
             input = self.iniItemsLC['Hv']
             vars(self)['Hv'] = vos.readPCRmapClone(input,self.cloneMap,
@@ -205,7 +211,7 @@ class LandCover(object):
             vars(self)['frho'] = pcr.spatial(pcr.scalar(vars(self)['frho']))
                 
         
-            #Create reverse DEM for transport to multiple cells
+            # #Create reverse DEM for transport to multiple cells
             reverse_dem= self.highResolutionDEM*-1
             self.reverseLDD=pcr.lddcreate(reverse_dem,1e31,1e31,1e31,1e31)
             ones=pcr.scalar(1.0)
@@ -1440,9 +1446,6 @@ class LandCover(object):
             prevStates        = [self.snowCoverSWE,self.snowFreeWater]
             prevSnowCoverSWE  = self.snowCoverSWE
             prevSnowFreeWater = self.snowFreeWater
-
-
-
             
         #%%ADDED BY JOREN: START    
         #------SNOW-TRANSPORT-----------------------------------------------------------------
@@ -1455,7 +1458,8 @@ class LandCover(object):
         self.incomingFreeWater=pcr.scalar(0.0)
         #What Kind Of Snow Transport Do We Want...?        
         if self.snowTransport=='FreyAndHolzmann':
-            self.simplifiedFreyAndHolzmann_pcraster()
+            self.simplifiedFreyAndHolzmann_pcraster(currTimeStep)
+            
         else:
             logger.info('NO SnowTransport: who needs that anyway....?')
 
@@ -1584,11 +1588,14 @@ class LandCover(object):
 #                                    currTimeStep.fulldate,threshold=5e-4)
 # =============================================================================
 
-    def simplifiedFreyAndHolzmann_pcraster(self):
+    def simplifiedFreyAndHolzmann_pcraster(self, currTimeStep):
         logger.info('Starting with Frey and Holzmann PCRASTER: let\'s see how far we get....')
         
         #TRANSPORT SNOW
         #Check where snow exceeds the threshold.
+        snowZones = pcr.ifthenelse(self.snowCoverSWE != 0, pcr.boolean(1), pcr.boolean(0))
+        # first see if m.y cover worked then try limit it to only snow conatining pixles
+        self.reverseLDD_sub = pcr.ifthen(snowZones != 0, self.reverseLDD)
         exceedingSnow=pcr.max(self.snowCoverSWE-self.Hv, 0.0)
         #Convert everything to volumes
         transportVolSnow=pcr.max(exceedingSnow*self.cellArea, 0.0)
@@ -1597,9 +1604,14 @@ class LandCover(object):
         
         #Divide by number of downstream cells (downstream copies the value of the downstream cell, thus this step is needed for water balance)        
         fractionTransport=self.transportVolSnow/self.downstreamCells
+        fractionTransport = pcr.cover(fractionTransport, 0.)
         #Transport the snow to downstream cells (with reverse LDD)
-        self.incomingVolSnow = pcr.downstream(self.reverseLDD, fractionTransport)
-        
+        # self.incomingVolSnow = pcr.downstream(self.reverseLDD, fractionTransport)
+        self.incomingVolSnow = pcr.downstream(self.reverseLDD_sub, fractionTransport)
+        self.incomingVolSnow = pcr.cover(self.incomingVolSnow, 0.)
+
+
+
         #TRANSPORT SNOWFREEWATER
         if self.transport_water==True:
             frac_of_snow=(exceedingSnow*self.angle/90*self.frho)/self.snowCoverSWE

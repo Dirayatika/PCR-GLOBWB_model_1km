@@ -1143,6 +1143,7 @@ class Meteo(object):
                                         cloneMapFileName = self.cloneMap,\
                                         LatitudeLongitude = True)
 
+
         else:
             self.temperature = vos.netcdf2PCRobjClone(\
                                         netcdf_file_name, "automatic",\
@@ -1150,6 +1151,7 @@ class Meteo(object):
                                         useDoy = method_for_time_index,
                                         cloneMapFileName = self.cloneMap,\
                                         LatitudeLongitude = True)
+
 
         #-----------------------------------------------------------------------
         # NOTE: RvB 13/07/2016 added to automatically update temperature
