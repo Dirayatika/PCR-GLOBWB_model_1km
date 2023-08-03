@@ -144,24 +144,21 @@ class LandCover(object):
         #%%ADDED BY JOREN:START
         self.snowTransport=False
         if "snowTransport" in list(self.iniItemsLC.keys())and self.iniItemsLC['snowTransport'] != "None":
-            logger.info("Using FreyAndHolzmann Snow Transport to prevent snow towers")
             self.snowTransport = self.iniItemsLC['snowTransport']
-            try: self.highResolutionDEM = vos.readPCRmapClone(\
-                                iniItems.meteoDownscalingOptions['highResolutionDEM'],
-                                    self.cloneMap,self.tmpDir,self.inputDir)
-            except: self.highResolutionDEM = vos.readPCRmapClone(\
-                                    iniItems.meteoOptions['highResolutionDEM'],
-                                self.cloneMap,self.tmpDir,self.inputDir)
             for var in ['Hv', 'frho']:
                 input = self.iniItemsLC[str(var)]
                 vars(self)[var] = vos.readPCRmapClone(input,self.cloneMap,
                                                 self.tmpDir,self.inputDir)
                 vars(self)[var] = pcr.spatial(pcr.scalar(vars(self)[var]))
         
-            # #Create reverse DEM for transport to multiple cells
-            self.reverseLDD=pcr.lddcreate((self.highResolutionDEM*-1),1e31,1e31,1e31,1e31)
+            self.reverseLDD=pcr.ldd(vos.readPCRmapClone(\
+                                    iniItems.landSurfaceOptions['invertedDEM'],
+                                self.cloneMap,self.tmpDir,self.inputDir))
+            
             self.downstreamCells=pcr.upstream(self.reverseLDD, pcr.scalar(1.0))
             self.downstreamCells=pcr.ifthenelse(self.downstreamCells==0, 1.0, self.downstreamCells)
+            logger.info("Using FreyAndHolzmann Snow Transport to prevent snow towers")
+    
     #%%ADDED BY JOREN:STOP
 
         # initialization some variables

@@ -81,16 +81,18 @@ def readUpstreamDischarge(ncFile,\
                                 cloneMapFileName  = None,\
                                 LatitudeLongitude = True,\
                                 specificFillValue = None):
+    logger.debug(f'Reading Upstream Discharge: {ncFile}')
     lon = pcr.pcr2numpy(pcr.xcoordinate(pcr.defined(cloneMapFileName)), np.nan)[0, :]
     lat = np.sort(pcr.pcr2numpy(pcr.ycoordinate(pcr.defined(cloneMapFileName)), np.nan)[:, 0])  
 
-    ds = xr.open_dataset(ncFile, chunks='auto')
+    ds = xr.open_dataset(ncFile, chunks='auto', engine='netcdf4')
     ds = ds.sel(time=dateInput).compute()
     ds = ds.reindex(lat=lat, lon=lon).sortby('lat', ascending=False)
     ds = ds.fillna(0.0)
     cropData = ds.discharge.values
     outPCR = pcr.numpy2pcr(pcr.Scalar, \
                 regridData2FinerGrid(1,cropData, float(0)), float(0))
+    ds.close()
     return (outPCR)
 
 def readDownscalingZarr(ncFile,\
