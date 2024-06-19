@@ -350,6 +350,7 @@ def readDownscalingMeteo(ncFile,\
     # crop to cloneMap:
     minX    = min(abs(f.variables['lon'][:] - (xULClone + 0.5*cellsizeInput)))# ; print(minX)
     xIdxSta = int(np.where(abs(f.variables['lon'][:] - (xULClone + 0.5*cellsizeInput)) == minX)[0]) -1
+    if xIdxSta == -1: xIdxSta = 0 
 
     #~ xIdxSta = int(np.where(np.abs(f.variables['lon'][:] - (xULClone - cellsizeInput/2)) == minX)[0][0])
     #~ # see: https://github.com/UU-Hydro/PCR-GLOBWB_model/pull/13
