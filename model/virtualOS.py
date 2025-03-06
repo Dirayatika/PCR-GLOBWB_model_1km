@@ -50,7 +50,7 @@ import logging
 from six.moves import range
 
 # ~ import xarray as xr
-import pyinterp
+# ~ import pyinterp
 import time
 
 logger = logging.getLogger(__name__)
