@@ -1099,11 +1099,17 @@ class Routing(object):
         if self.upstream_discharge_input_files is not None:
             for i_ups_file in range(0, len(self.upstream_discharge_input_files)):
                 upstream_discharge_input_file = self.upstream_discharge_input_files[i_ups_file]
-                self.upstream_discharge  = vos.readUpstreamDischarge(\
-                                                            upstream_discharge_input_file, "automatic",\
-                                                            str(currTimeStep.fulldate),
-                                                            cloneMapFileName=self.cloneMap,
-                                                            useDoy = None)
+                # ~ self.upstream_discharge  = vos.readUpstreamDischarge(\
+                                                            # ~ upstream_discharge_input_file, "automatic",\
+                                                            # ~ str(currTimeStep.fulldate),
+                                                            # ~ cloneMapFileName=self.cloneMap,
+                                                            # ~ useDoy = None)
+                self.upstream_discharge  = vos.netcdf2PCRobjClone(\
+                                        upstream_discharge_input_file, "automatic",\
+                                        str(currTimeStep.fulldate), 
+                                        useDoy = None,
+                                        cloneMapFileName = self.cloneMap)
+                self.upstream_discharge  = pcr.max(self.upstream_dischage, 0.0)
                 total_upstream_discharge = total_upstream_discharge + pcr.cover(self.upstream_discharge, 0.0)
         # - put the upstream discharge into the current calculate basin
         total_upstream_discharge = pcr.upstream(self.ldd_complete, total_upstream_discharge)
