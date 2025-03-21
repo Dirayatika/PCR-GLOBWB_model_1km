@@ -1109,7 +1109,7 @@ class Routing(object):
                                         str(currTimeStep.fulldate), 
                                         useDoy = None,
                                         cloneMapFileName = self.cloneMap)
-                self.upstream_discharge  = pcr.max(self.upstream_dischage, 0.0)
+                self.upstream_discharge  = pcr.max(self.upstream_discharge, 0.0)
                 total_upstream_discharge = total_upstream_discharge + pcr.cover(self.upstream_discharge, 0.0)
         # - put the upstream discharge into the current calculate basin
         total_upstream_discharge = pcr.upstream(self.ldd_complete, total_upstream_discharge)
